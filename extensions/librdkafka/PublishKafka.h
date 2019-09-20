@@ -128,6 +128,12 @@ class PublishKafka : public core::Processor {
       read_size_ = 0;
       status_ = 0;
       rd_kafka_resp_err_t err;
+      // TODO: Change this.
+      // Create struct with map
+      // onTrigger check
+      // onStop failure
+      // *** Thread-safe
+      rd_kafka_resp_err_t err_dr;
 
       for (auto kv : flowFile_->getAttributes()) {
         if (regex_match(kv.first, attributeNameRegex_)) {
@@ -149,13 +155,13 @@ class PublishKafka : public core::Processor {
             rd_kafka_headers_t *hdrs_copy;
             hdrs_copy = rd_kafka_headers_copy(hdrs);
             err = rd_kafka_producev(rk_, RD_KAFKA_V_RKT(rkt_), RD_KAFKA_V_PARTITION(RD_KAFKA_PARTITION_UA), RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY), RD_KAFKA_V_VALUE(&buffer[0], readRet),
-                                    RD_KAFKA_V_HEADERS(hdrs_copy), RD_KAFKA_V_KEY(key_.c_str(), key_.size()), RD_KAFKA_V_END);
+                                    RD_KAFKA_V_HEADERS(hdrs_copy), RD_KAFKA_V_KEY(key_.c_str(), key_.size()), RD_KAFKA_V_OPAQUE(&err_dr), RD_KAFKA_V_END);
             if (err) {
               rd_kafka_headers_destroy(hdrs_copy);
             }
           } else {
             err = rd_kafka_producev(rk_, RD_KAFKA_V_RKT(rkt_), RD_KAFKA_V_PARTITION(RD_KAFKA_PARTITION_UA), RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY), RD_KAFKA_V_VALUE(&buffer[0], readRet),
-                                    RD_KAFKA_V_KEY(key_.c_str(), key_.size()), RD_KAFKA_V_END);
+                                    RD_KAFKA_V_KEY(key_.c_str(), key_.size()), RD_KAFKA_V_OPAQUE(&err_dr), RD_KAFKA_V_END);
           }
           if (err) {
             status_ = -1;
@@ -201,6 +207,8 @@ class PublishKafka : public core::Processor {
   bool configureNewConnection(const std::shared_ptr<KafkaConnection> &conn, const std::shared_ptr<core::ProcessContext> &context, const std::shared_ptr<core::FlowFile> &ff);
 
  private:
+  static void msgDelivered (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque);
+
   std::shared_ptr<logging::Logger> logger_;
 
   KafkaPool connection_pool_;

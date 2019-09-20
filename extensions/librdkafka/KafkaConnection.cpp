@@ -30,6 +30,11 @@ KafkaConnection::KafkaConnection(const KafkaConnectionKey &key)
   lease_ = false;
   initialized_ = false;
   key_ = key;
+  poll_ = false;
+}
+
+KafkaConnection::~KafkaConnection() {
+  remove();
 }
 
 void KafkaConnection::remove() {
@@ -40,6 +45,7 @@ void KafkaConnection::remove() {
 void KafkaConnection::removeConnection() {
   if (kafka_connection_) {
     rd_kafka_flush(kafka_connection_, 10 * 1000); /* wait for max 10 seconds */
+    finishPoll();
     rd_kafka_destroy(kafka_connection_);
     modifyLoggers([&](std::unordered_map<const rd_kafka_t*, std::weak_ptr<logging::Logger>>& loggers) {
       loggers.erase(kafka_connection_);
@@ -65,6 +71,7 @@ void KafkaConnection::setConnection(rd_kafka_t *producer, rd_kafka_conf_t *conf)
   modifyLoggers([&](std::unordered_map<const rd_kafka_t*, std::weak_ptr<logging::Logger>>& loggers) {
     loggers[producer] = logger_;
   });
+  startPoll();
 }
 
 rd_kafka_conf_t *KafkaConnection::getConf() const {

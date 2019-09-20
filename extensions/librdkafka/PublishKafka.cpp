@@ -121,6 +121,18 @@ void PublishKafka::initialize() {
 void PublishKafka::onSchedule(const std::shared_ptr<core::ProcessContext> &context, const std::shared_ptr<core::ProcessSessionFactory> &sessionFactory) {
 }
 
+/**
+ * Message delivery report callback using the richer rd_kafka_message_t object.
+ */
+void PublishKafka::msgDelivered(rd_kafka_t *rk,
+                           const rd_kafka_message_t *rkmessage, void *opaque) {
+//    if (rkmessage->err) {
+        printf("%% Message delivery failed: %d -- %s\n", rkmessage->err,
+               rd_kafka_err2str(rkmessage->err));
+//    }
+  *(rd_kafka_resp_err_t*)rkmessage->_private = rkmessage->err;
+}
+
 bool PublishKafka::configureNewConnection(const std::shared_ptr<KafkaConnection> &conn, const std::shared_ptr<core::ProcessContext> &context, const std::shared_ptr<core::FlowFile> &ff) {
   std::string value;
   int64_t valInt;
@@ -129,7 +141,7 @@ bool PublishKafka::configureNewConnection(const std::shared_ptr<KafkaConnection>
   rd_kafka_conf_res_t result;
 
   auto conf_ = rd_kafka_conf_new();
-
+  rd_kafka_conf_set_dr_msg_cb(conf_, msgDelivered);
   auto key = conn->getKey();
 
   if (context->getProperty(DebugContexts.getName(), value) && !value.empty()) {
@@ -281,6 +293,9 @@ bool PublishKafka::configureNewConnection(const std::shared_ptr<KafkaConnection>
     }
   }
 
+  //TODO: hardcoded for developing
+  rd_kafka_conf_set(conf_, "message.timeout.ms", "42", errstr, sizeof(errstr));
+
   // Add all of the dynamic properties as librdkafka configurations
   const auto &dynamic_prop_keys = context->getDynamicPropertyKeys();
   logger_->log_info("PublishKafka registering %d librdkafka dynamic properties", dynamic_prop_keys.size());
@@ -345,20 +360,20 @@ void PublishKafka::onTrigger(const std::shared_ptr<core::ProcessContext> &contex
       }
     }
 
-    // Check if brokers are down, if yes then yield.
-    const struct rd_kafka_metadata *metadata;
-    /* Fetch metadata */
-    // TODO: What is the time complexity of this??
-    rd_kafka_resp_err_t err = rd_kafka_metadata(conn->getConnection(), 0, nullptr,
-                            &metadata, 500);
-    if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
-      logger_->log_error("Failed to acquire metadata: %s\n", rd_kafka_err2str(err));
-      session->transfer(flowFile, Failure);
-      return;
-    } else {
-      logger_->log_debug("There are %d brokers", metadata->broker_cnt);
-      rd_kafka_metadata_destroy(metadata);
-    }
+//    // Check if brokers are down, if yes then yield.
+//    const struct rd_kafka_metadata *metadata;
+//    /* Fetch metadata */
+//    // TODO: What is the time complexity of this??
+//    rd_kafka_resp_err_t err = rd_kafka_metadata(conn->getConnection(), 0, nullptr,
+//                            &metadata, 500);
+//    if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
+//      logger_->log_error("Failed to acquire metadata: %s\n", rd_kafka_err2str(err));
+//      context->yield();
+//      return;
+//    } else {
+//      logger_->log_debug("There are %d brokers", metadata->broker_cnt);
+//      rd_kafka_metadata_destroy(metadata);
+//    }
 
     if (!conn->hasTopic(topic)) {
       auto topic_conf_ = rd_kafka_topic_conf_new();
