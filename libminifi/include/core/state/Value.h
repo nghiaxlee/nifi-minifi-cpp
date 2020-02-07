@@ -253,51 +253,19 @@ class BoolValue : public Value {
  protected:
 
   virtual bool getValue(int &ref) {
-    if (ref == 1) {
-      ref = true;
-      return true;
-    } else if (ref == 0) {
-      ref = false;
-      return true;
-    } else {
-      return false;
-    }
+    return AvoidSwearingWhileRefactoring(ref);
   }
 
   virtual bool getValue(uint32_t &ref) {
-    if (ref == 1) {
-      ref = true;
-      return true;
-    } else if (ref == 0) {
-      ref = false;
-      return true;
-    } else {
-      return false;
-    }
+    return AvoidSwearingWhileRefactoring(ref);
   }
 
   virtual bool getValue(int64_t &ref) {
-    if (ref == 1) {
-      ref = true;
-      return true;
-    } else if (ref == 0) {
-      ref = false;
-      return true;
-    } else {
-      return false;
-    }
+    return AvoidSwearingWhileRefactoring(ref);
   }
 
   virtual bool getValue(uint64_t &ref) {
-    if (ref == 1) {
-      ref = true;
-      return true;
-    } else if (ref == 0) {
-      ref = false;
-      return true;
-    } else {
-      return false;
-    }
+    return AvoidSwearingWhileRefactoring(ref);
   }
 
   virtual bool getValue(bool &ref) {
@@ -306,6 +274,16 @@ class BoolValue : public Value {
   }
 
   bool value;
+
+ private:
+  template<typename T>
+  bool AvoidSwearingWhileRefactoring(T &ref) {
+    if (value != 0 && value != 1) {
+      return false;
+    }
+    ref = value != 0;
+    return true;
+  }
 };
 
 class UInt64Value : public Value {
